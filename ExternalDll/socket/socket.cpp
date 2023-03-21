@@ -65,7 +65,7 @@ namespace memory
 }
 
 
-static SOCKET MYsocket::connect(const char* server_ip, int server_port)
+SOCKET MYsocket::connect(const char* server_ip, int server_port, int timeout_ms)
 {
     // Initialize Winsock
     WSADATA wsa_data;
@@ -83,8 +83,11 @@ static SOCKET MYsocket::connect(const char* server_ip, int server_port)
         return INVALID_SOCKET;
     }
 
-    int timeout_ms = 5000;
-    if (setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_ms, sizeof(timeout_ms)) == SOCKET_ERROR) {
+    // Set receive timeout
+    timeval timeout;
+    timeout.tv_sec = timeout_ms / 1000;
+    timeout.tv_usec = (timeout_ms % 1000) * 1000;
+    if (setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout)) == SOCKET_ERROR) {
         std::cerr << "setsockopt failed with error: " << WSAGetLastError() << std::endl;
         closesocket(connection);
         WSACleanup();
@@ -94,7 +97,7 @@ static SOCKET MYsocket::connect(const char* server_ip, int server_port)
     // Configure server address
     SOCKADDR_IN server_address;
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr(server_ip);
+    inet_pton(AF_INET, server_ip, &server_address.sin_addr);
     server_address.sin_port = htons(server_port);
 
     // Connect to server
@@ -108,7 +111,6 @@ static SOCKET MYsocket::connect(const char* server_ip, int server_port)
 
     return connection;
 }
-
 
 static Rust::CheatManager::exec()
 {
