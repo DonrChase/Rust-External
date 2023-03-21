@@ -128,9 +128,24 @@ bool MYconnect(const char* server_ip, int server_port)
 
 void run_esp()
 {
-    d2d_window_t window{};
-    _renderer renderer{ window._handle, find_window() };
-    window.~d2d_window_t();
+    std::unique_ptr<d2d_window_t> window = std::make_unique<d2d_window_t>();
+    std::unique_ptr<_renderer> renderer = std::make_unique<_renderer>(window->_handle, find_window());
+
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    std::wstring overflow_text = converter.from_bytes("overflow");
+
+    std::vector<std::pair<uintptr_t, GameObjectType>> valid_objects;
+
+    {
+        std::lock_guard<std::mutex> lock(game::draw_mutex);
+        for (auto& object : game::draw_list)
+        {
+            if (object.second != Invalid && driver::read<vec3_t>(object.first + 0x90) != vec3_t{ -1, -1, -1 })
+            {
+                valid_objects.emplace_back(object);
+            }
+        }
+    }
 
     while (!GetAsyncKeyState(VK_END) && !settings::end)
     {
